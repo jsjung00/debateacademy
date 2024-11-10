@@ -3,34 +3,56 @@
 
 import React, { useState } from 'react';
 import { Upload, Mic, FileText, X } from 'lucide-react';
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+
+
+
 export default function DebateAssistant() {
-  const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [userSpeech, setUserSpeech] = useState('');
   const [generatedResponse, setGeneratedResponse] = useState('');
   const [isRecording, setIsRecording] = useState(false);
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
+  const handleFileChange = (event) => {
+    const selectedFiles = Array.from(event.target.files);
+    const pdfFiles = selectedFiles.filter(file => file.type == "application/pdf");
+    setFiles(pdfFiles);
+  }
 
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
+  const handleUpload = async () => {
+    if (files.length === 0) {
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('files', file);
+      });
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    setFiles(prev => [...prev, ...droppedFiles]);
-  };
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload/`, {
+        method: 'POST',
+        body: formData
+      });
+      console.log("response status", response.status);
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`)
+      }
+
+      setFiles([]);
+    }
+    catch (err) {
+      print(err)
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const removeFile = (index) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
@@ -60,28 +82,50 @@ export default function DebateAssistant() {
       {/* Main Content */}
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Upload Section */}
-        <Card 
-          className={`border-2 border-dashed rounded-lg ${
-            isDragging ? 'border-primary bg-primary/5' : 'border-muted'
-          }`}
-        >
-          <CardContent 
-            className="p-8 text-center"
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold mb-2">
-              Drop your PDF documents here
-            </h2>
-            <p className="text-muted-foreground mb-4">
-              or click to browse your files
-            </p>
-            <Button size="lg">Upload Files</Button>
+        <Card className="w-full max-w-xl mx-auto">
+          <CardContent className="p-8 text-center">
+            <div className="border-2 border-dashed rounded-lg">
+              <input
+                type="file"
+                multiple
+                accept=".pdf"
+                onChange={handleFileChange}
+                className="hidden"
+                id="file-upload"
+              />
+              <label
+                htmlFor="file-upload"
+                className="cursor-pointer flex flex-col items-center"
+              >
+                <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h2 className="text-xl font-semibold mb-2">
+                  Click to upload PDF documents here
+                </h2>
+              </label>
+            </div>
+            {files.length > 0 &&
+              <div className="mt-4">
+                <h4 className="text-sm font-medium mb-2">Selected Files:</h4>
+                <ul className="space-y-2">
+                  {files.map((file, index) => (
+                    <li key={index} className="text-sm text-gray-600">
+                      {file.name} ({(file.size / 1024).toFixed(2)} KB)
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            }
           </CardContent>
+          <CardFooter>
+            <Button
+              onClick={handleUpload}
+              disabled={uploading || files.length === 0}
+              className="w-full"
+            >
+              {uploading ? 'Uploading...' : 'Upload Files'}
+            </Button>
+          </CardFooter>
         </Card>
-
         {/* Split Screen Interface */}
         <div className="grid md:grid-cols-2 gap-4 min-h-[400px]">
           {/* Left Panel */}
@@ -102,7 +146,7 @@ export default function DebateAssistant() {
               value={userSpeech}
               onChange={(e) => setUserSpeech(e.target.value)}
             />
-            <Button 
+            <Button
               className="w-full"
               onClick={handleGenerateResponse}
             >
