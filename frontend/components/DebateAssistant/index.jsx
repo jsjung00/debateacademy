@@ -1,28 +1,28 @@
 // app/components/DebateAssistant/index.jsx
 "use client";
 
-import React, { useState } from 'react';
-import { Upload, Mic, FileText, X } from 'lucide-react';
+import React, { useState } from "react";
+import { Upload, Mic, FileText, X } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-
-
-
 export default function DebateAssistant() {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [userSpeech, setUserSpeech] = useState('');
-  const [generatedResponse, setGeneratedResponse] = useState('');
+  const [userSpeech, setUserSpeech] = useState("");
+  const [responseLoading, setResponseLoading] = useState(false);
+  const [generatedResponse, setGeneratedResponse] = useState("");
   const [isRecording, setIsRecording] = useState(false);
 
   const handleFileChange = (event) => {
     const selectedFiles = Array.from(event.target.files);
-    const pdfFiles = selectedFiles.filter(file => file.type == "application/pdf");
+    const pdfFiles = selectedFiles.filter(
+      (file) => file.type == "application/pdf"
+    );
     setFiles(pdfFiles);
-  }
+  };
 
   const handleUpload = async () => {
     if (files.length === 0) {
@@ -31,40 +31,59 @@ export default function DebateAssistant() {
     setUploading(true);
     try {
       const formData = new FormData();
-      files.forEach(file => {
-        formData.append('files', file);
+      files.forEach((file) => {
+        formData.append("files", file);
       });
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload/`, {
-        method: 'POST',
-        body: formData
-      });
-      console.log("response status", response.status);
+      console.log("This is the api", `${process.env.NEXT_PUBLIC_API_URL}/`);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/upload/`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`)
+        throw new Error(`Upload failed: ${response.statusText}`);
       }
 
       setFiles([]);
-    }
-    catch (err) {
-      print(err)
+    } catch (err) {
+      print(err);
     } finally {
       setUploading(false);
     }
-  }
-
-  const removeFile = (index) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleGenerateResponse = () => {
-    setGeneratedResponse(
-      "Based on your argument and the uploaded documents, here are some potential counter-points:\n\n" +
-      "1. Your premise about economic impact might not consider long-term sustainability factors\n" +
-      "2. Historical precedents suggest a different outcome than what you've proposed\n" +
-      "3. Recent studies have shown contradicting evidence to your main points"
-    );
+  const removeFile = (index) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleGenerateResponse = async () => {
+    setResponseLoading(true);
+    const query = { query_text: userSpeech };
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/query/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(query),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Reponse generation failed: ${response.statusText}`);
+      }
+      console.log("Received response text", response.response);
+      setGeneratedResponse(response.response);
+    } catch (err) {
+      print(err);
+    } finally {
+      setResponseLoading(false);
+    }
   };
 
   return (
@@ -103,7 +122,7 @@ export default function DebateAssistant() {
                 </h2>
               </label>
             </div>
-            {files.length > 0 &&
+            {files.length > 0 && (
               <div className="mt-4">
                 <h4 className="text-sm font-medium mb-2">Selected Files:</h4>
                 <ul className="space-y-2">
@@ -114,7 +133,7 @@ export default function DebateAssistant() {
                   ))}
                 </ul>
               </div>
-            }
+            )}
           </CardContent>
           <CardFooter>
             <Button
@@ -122,7 +141,7 @@ export default function DebateAssistant() {
               disabled={uploading || files.length === 0}
               className="w-full"
             >
-              {uploading ? 'Uploading...' : 'Upload Files'}
+              {uploading ? "Uploading..." : "Upload Files"}
             </Button>
           </CardFooter>
         </Card>
@@ -146,10 +165,7 @@ export default function DebateAssistant() {
               value={userSpeech}
               onChange={(e) => setUserSpeech(e.target.value)}
             />
-            <Button
-              className="w-full"
-              onClick={handleGenerateResponse}
-            >
+            <Button className="w-full" onClick={handleGenerateResponse}>
               Generate Counter-Arguments
             </Button>
           </Card>
@@ -162,7 +178,8 @@ export default function DebateAssistant() {
                 <p className="whitespace-pre-line">{generatedResponse}</p>
               ) : (
                 <p className="text-muted-foreground text-center mt-8">
-                  Counter-arguments will appear here after you submit your argument
+                  Counter-arguments will appear here after you submit your
+                  argument
                 </p>
               )}
             </div>

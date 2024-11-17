@@ -116,13 +116,21 @@ def query_rag_system(index, query_text):
 
     return response 
 
+
+def query_no_files(query_text):
+    raise NotImplementedError("Haven't implemented non-rag response")
+    pass 
+
 @app.post("/query/", response_model=QueryResponse)
 def driver(query: QueryRequest):
     if global_index is None:
-        raise HTTPException(status_code=400, detail="RAG index not created. Upload docs first")
+        try:
+            query_no_files(query.query_text)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f'Query without RAG files failed: {str(e)}')
     
     try:
-        response = query_rag_system(global_index, query)
+        response = query_rag_system(global_index, query.query_text)
         print(f"Reponse: {response}")
         return QueryResponse(response=str(response), 
             source_documents=[str(source) for source in response.source_nodes] if hasattr(response, 'source_nodes') else None )
