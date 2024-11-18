@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, Mic, FileText, X } from "lucide-react";
+import { Upload, Mic, FileText, X, Trash2 } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,38 +16,24 @@ export default function DebateAssistant() {
   const [generatedResponse, setGeneratedResponse] = useState("");
   const [isRecording, setIsRecording] = useState(false);
 
-  const handleFileChange = (event) => {
-    const selectedFiles = Array.from(event.target.files);
-    const pdfFiles = selectedFiles.filter(
-      (file) => file.type == "application/pdf"
-    );
-    setFiles(pdfFiles);
-  };
-
   const handleUpload = async () => {
     if (files.length === 0) {
       return;
     }
     setUploading(true);
+
     try {
-      const formData = new FormData();
-      files.forEach((file) => {
-        formData.append("files", file);
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(query),
       });
-      console.log("This is the api", `${process.env.NEXT_PUBLIC_API_URL}/`);
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/upload/`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
+        throw new Error(`Reponse generation failed: ${response.statusText}`);
       }
-
-      setFiles([]);
     } catch (err) {
       print(err);
     } finally {
@@ -55,30 +41,43 @@ export default function DebateAssistant() {
     }
   };
 
-  const removeFile = (index) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  const handleFileChange = (event) => {
+    console.log("Fired file change");
+    console.log(files);
+    const selectedFiles = Array.from(event.target.files);
+    const newPDFFiles = selectedFiles.filter(
+      (file) =>
+        file.type == "application/pdf" &&
+        !files.some((existingFile) => existingFile.name === file.name)
+    );
+    setFiles([...files, ...newPDFFiles]);
+
+    event.target.value = "";
+  };
+
+  const handleDelete = (index) => {
+    const newFiles = files.filter((_, idx) => idx != index);
+    setFiles(newFiles);
   };
 
   const handleGenerateResponse = async () => {
     setResponseLoading(true);
     const query = { query_text: userSpeech };
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/query/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(query),
-        }
-      );
+      const response = await fetch("/api/crossex", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(query),
+      });
 
       if (!response.ok) {
         throw new Error(`Reponse generation failed: ${response.statusText}`);
       }
-      console.log("Received response text", response.response);
-      setGeneratedResponse(response.response);
+      const data = await response.json();
+      console.log("Received response text", data.response);
+      setGeneratedResponse(data.response);
     } catch (err) {
       print(err);
     } finally {
@@ -94,7 +93,7 @@ export default function DebateAssistant() {
           AI-Powered Debate Assistant
         </h1>
         <p className="text-xl text-muted-foreground">
-          Upload your research, speak your argument, get instant counter-points
+          Upload cases and blocks and simulate a debate round
         </p>
       </div>
 
@@ -127,8 +126,19 @@ export default function DebateAssistant() {
                 <h4 className="text-sm font-medium mb-2">Selected Files:</h4>
                 <ul className="space-y-2">
                   {files.map((file, index) => (
-                    <li key={index} className="text-sm text-gray-600">
-                      {file.name} ({(file.size / 1024).toFixed(2)} KB)
+                    <li
+                      key={index}
+                      className="text-sm text-gray-600 flex justify-between items-center"
+                    >
+                      <span>
+                        {file.name} ({(file.size / 1024).toFixed(2)} KB)
+                      </span>
+                      <button
+                        onClick={() => handleDelete(index)}
+                        className="text-gray-500 hover:text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -166,20 +176,20 @@ export default function DebateAssistant() {
               onChange={(e) => setUserSpeech(e.target.value)}
             />
             <Button className="w-full" onClick={handleGenerateResponse}>
-              Generate Counter-Arguments
+              Generate Cross Examination Questions
             </Button>
           </Card>
 
           {/* Right Panel */}
           <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">AI Counter-Arguments</h3>
+            <h3 className="text-lg font-semibold mb-4">Cross Examination</h3>
             <div className="bg-muted p-4 rounded-lg min-h-[300px]">
               {generatedResponse ? (
                 <p className="whitespace-pre-line">{generatedResponse}</p>
               ) : (
                 <p className="text-muted-foreground text-center mt-8">
-                  Counter-arguments will appear here after you submit your
-                  argument
+                  Cross examination questions will appear here after you submit
+                  your case
                 </p>
               )}
             </div>
