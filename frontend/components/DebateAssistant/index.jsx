@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function DebateAssistant() {
   const [files, setFiles] = useState([]);
+  const [fileUrls, setFileUrls] = useState([]); //public AWS file urls
   const [uploading, setUploading] = useState(false);
   const [userSpeech, setUserSpeech] = useState("");
   const [responseLoading, setResponseLoading] = useState(false);
@@ -38,6 +39,8 @@ export default function DebateAssistant() {
       }
 
       const { uploadUrls, fileUrls } = await response.json();
+      console.log("upload urls", uploadUrls);
+      console.log("file urls", fileUrls);
 
       // upload the file directly to s3
       const result = await Promise.all(
@@ -52,12 +55,16 @@ export default function DebateAssistant() {
         )
       );
 
-      if (!result.every((res) => res.ok))
+      if (!result.every((res) => res.ok)) {
         throw new Error("Failed to upload all files succesfully ");
+      }
+
+      setFileUrls(fileUrls);
     } catch (err) {
-      print(err);
+      console.log(err);
     } finally {
       setUploading(false);
+      setFiles([]);
     }
   };
 
@@ -82,22 +89,21 @@ export default function DebateAssistant() {
 
   const handleGenerateResponse = async () => {
     setResponseLoading(true);
-    const query = { query_text: userSpeech };
     try {
       const response = await fetch("/api/crossex", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(query),
+        body: JSON.stringify({ userSpeech: userSpeech, fileUrls: fileUrls }),
       });
 
       if (!response.ok) {
         throw new Error(`Reponse generation failed: ${response.statusText}`);
       }
-      const data = await response.json();
-      console.log("Received response text", data.response);
-      setGeneratedResponse(data.response);
+      const { crossExaminationText } = await response.json();
+      console.log("Received response text", crossExaminationText);
+      setGeneratedResponse(crossExaminationText);
     } catch (err) {
       print(err);
     } finally {
@@ -195,7 +201,11 @@ export default function DebateAssistant() {
               value={userSpeech}
               onChange={(e) => setUserSpeech(e.target.value)}
             />
-            <Button className="w-full" onClick={handleGenerateResponse}>
+            <Button
+              className="w-full"
+              onClick={handleGenerateResponse}
+              disabled={uploading}
+            >
               Generate Cross Examination Questions
             </Button>
           </Card>
