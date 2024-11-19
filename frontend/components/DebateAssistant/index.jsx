@@ -21,19 +21,39 @@ export default function DebateAssistant() {
       return;
     }
     setUploading(true);
-
     try {
-      const response = await fetch("/api/upload", {
+      // get the presigned URL to then upload to s3
+      const response = await fetch("/api/getUploadURL", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(query),
+        body: JSON.stringify({
+          fileNames: files.map((fileObj) => fileObj.name),
+        }),
       });
 
       if (!response.ok) {
         throw new Error(`Reponse generation failed: ${response.statusText}`);
       }
+
+      const { uploadUrls, fileUrls } = await response.json();
+
+      // upload the file directly to s3
+      const result = await Promise.all(
+        uploadUrls.map((uploadUrl, index) =>
+          fetch(uploadUrl, {
+            method: "PUT",
+            body: files[index],
+            headers: {
+              "Content-Type": "application/pdf",
+            },
+          })
+        )
+      );
+
+      if (!result.every((res) => res.ok))
+        throw new Error("Failed to upload all files succesfully ");
     } catch (err) {
       print(err);
     } finally {
