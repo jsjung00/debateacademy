@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "create-next-app": "^14.2.16"
   }
 }

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, Mic, FileText, X, Trash2 } from "lucide-react";
+import { Upload, Mic, FileText, X, Trash2, Loader2 } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function DebateAssistant() {
   const [files, setFiles] = useState([]);
-  const [fileUrls, setFileUrls] = useState([]); //public AWS file urls
+  const [fileDatas, setFileDatas] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [userSpeech, setUserSpeech] = useState("");
   const [responseLoading, setResponseLoading] = useState(false);
@@ -22,44 +22,24 @@ export default function DebateAssistant() {
       return;
     }
     setUploading(true);
+    console.log("Sending these files: ", files);
     try {
-      // get the presigned URL to then upload to s3
-      const response = await fetch("/api/getUploadURL", {
+      const formData = new FormData();
+      files.forEach((file) => formData.append("file[]", file));
+
+      const response = await fetch("/api/uploadGemini", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileNames: files.map((fileObj) => fileObj.name),
-        }),
+        body: formData,
       });
+      const data = await response.json();
+      console.log("returned data", data);
 
       if (!response.ok) {
-        throw new Error(`Reponse generation failed: ${response.statusText}`);
+        throw new Error(
+          `Failed with status ${response.status} and ${data.message}`
+        );
       }
-
-      const { uploadUrls, fileUrls } = await response.json();
-      console.log("upload urls", uploadUrls);
-      console.log("file urls", fileUrls);
-
-      // upload the file directly to s3
-      const result = await Promise.all(
-        uploadUrls.map((uploadUrl, index) =>
-          fetch(uploadUrl, {
-            method: "PUT",
-            body: files[index],
-            headers: {
-              "Content-Type": "application/pdf",
-            },
-          })
-        )
-      );
-
-      if (!result.every((res) => res.ok)) {
-        throw new Error("Failed to upload all files succesfully ");
-      }
-
-      setFileUrls(fileUrls);
+      setFileDatas(data.fileDatas);
     } catch (err) {
       console.log(err);
     } finally {
@@ -70,7 +50,6 @@ export default function DebateAssistant() {
 
   const handleFileChange = (event) => {
     console.log("Fired file change");
-    console.log(files);
     const selectedFiles = Array.from(event.target.files);
     const newPDFFiles = selectedFiles.filter(
       (file) =>
@@ -78,6 +57,7 @@ export default function DebateAssistant() {
         !files.some((existingFile) => existingFile.name === file.name)
     );
     setFiles([...files, ...newPDFFiles]);
+    console.log("Updated files to", [...files, ...newPDFFiles]);
 
     event.target.value = "";
   };
@@ -95,7 +75,7 @@ export default function DebateAssistant() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ userSpeech: userSpeech, fileUrls: fileUrls }),
+        body: JSON.stringify({ userSpeech: userSpeech, fileDatas: fileDatas }),
       });
 
       if (!response.ok) {
@@ -204,9 +184,13 @@ export default function DebateAssistant() {
             <Button
               className="w-full"
               onClick={handleGenerateResponse}
-              disabled={uploading}
+              disabled={uploading || responseLoading}
             >
-              Generate Cross Examination Questions
+              {responseLoading ? (
+                <Loader2 className="animate-spin"></Loader2>
+              ) : (
+                <p>Generate Cross Examination Questions</p>
+              )}
             </Button>
           </Card>
 
