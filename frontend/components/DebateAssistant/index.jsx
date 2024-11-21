@@ -6,6 +6,7 @@ import { Upload, Mic, FileText, X, Trash2, Loader2 } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function DebateAssistant() {
@@ -13,8 +14,9 @@ export default function DebateAssistant() {
   const [fileDatas, setFileDatas] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [userSpeech, setUserSpeech] = useState("");
-  const [responseLoading, setResponseLoading] = useState(false);
-  const [generatedResponse, setGeneratedResponse] = useState("");
+  const [cxResponseLoading, setCXResponseLoading] = useState(false);
+  const [constructiveLoading, setConstructiveLoading] = useState(false);
+  const [generatedCX, setGeneratedCX] = useState("");
   const [isRecording, setIsRecording] = useState(false);
 
   const handleUpload = async () => {
@@ -67,8 +69,8 @@ export default function DebateAssistant() {
     setFiles(newFiles);
   };
 
-  const handleGenerateResponse = async () => {
-    setResponseLoading(true);
+  const handleGenerateCXResponse = async () => {
+    setCXResponseLoading(true);
     try {
       const response = await fetch("/api/crossex", {
         method: "POST",
@@ -83,12 +85,16 @@ export default function DebateAssistant() {
       }
       const { crossExaminationText } = await response.json();
       console.log("Received response text", crossExaminationText);
-      setGeneratedResponse(crossExaminationText);
+      setGeneratedCX(crossExaminationText);
     } catch (err) {
       print(err);
     } finally {
-      setResponseLoading(false);
+      setCXResponseLoading(false);
     }
+  };
+
+  const handleGenerateConstuctive = async () => {
+    return;
   };
 
   return (
@@ -181,32 +187,71 @@ export default function DebateAssistant() {
               value={userSpeech}
               onChange={(e) => setUserSpeech(e.target.value)}
             />
-            <Button
-              className="w-full"
-              onClick={handleGenerateResponse}
-              disabled={uploading || responseLoading}
-            >
-              {responseLoading ? (
-                <Loader2 className="animate-spin"></Loader2>
-              ) : (
-                <p>Generate Cross Examination Questions</p>
-              )}
-            </Button>
+            <div className="space-y-2 mt-4">
+              <Button
+                className="w-full"
+                onClick={handleGenerateCXResponse}
+                disabled={uploading || cxResponseLoading}
+              >
+                {cxResponseLoading ? (
+                  <Loader2 className="animate-spin"></Loader2>
+                ) : (
+                  <p>Generate Cross Examination Questions</p>
+                )}
+              </Button>
+              <Button
+                className="w-full"
+                onClick={handleGenerateConstuctive}
+                disabled={uploading || constructiveLoading}
+              >
+                {constructiveLoading ? (
+                  <Loader2 className="animate-spin"></Loader2>
+                ) : (
+                  <p>Generate Counter Constructive</p>
+                )}
+              </Button>
+            </div>
           </Card>
 
-          {/* Right Panel */}
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Cross Examination</h3>
-            <div className="bg-muted p-4 rounded-lg min-h-[300px]">
-              {generatedResponse ? (
-                <p className="whitespace-pre-line">{generatedResponse}</p>
-              ) : (
-                <p className="text-muted-foreground text-center mt-8">
-                  Cross examination questions will appear here after you submit
-                  your case
-                </p>
-              )}
-            </div>
+          {/* Right Panel- tabs for CX and counter speech */}
+          <Card className="pt-6 h-full">
+            <CardContent className="h-full">
+              <Tabs
+                defaultValue="cross-examination"
+                className="w-full h-full flex flex-col"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="cross-examination">
+                    Cross Examination
+                  </TabsTrigger>
+                  <TabsTrigger value="counter-speech">
+                    Counter Speech
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent
+                  value="cross-examination"
+                  className="mt-4 flex-grow"
+                >
+                  <div className="p-3 border rounded-lg h-full">
+                    {generatedCX ? (
+                      <p className="text-gray-600">{generatedCX}</p>
+                    ) : (
+                      <p className="text-gray-600">
+                        Cross examination questions will appear here after
+                        generating...
+                      </p>
+                    )}
+                  </div>
+                </TabsContent>
+                <TabsContent value="counter-speech" className="mt-4 flex-grow">
+                  <div className="p-3 border rounded-lg h-full">
+                    <p className="text-gray-600">
+                      Counter speech will appear here after generating...
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
           </Card>
         </div>
       </div>
