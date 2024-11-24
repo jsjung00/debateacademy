@@ -115,6 +115,7 @@ export default function DebateAssistant() {
 
       const audioplayer = new AudioChainPlayer(text, 1.0);
       currentAudioRef.current = audioplayer;
+      setIsPaused(false);
       await audioplayer.start();
     } catch (error) {
       console.error("TTS error", error);
@@ -198,10 +199,17 @@ export default function DebateAssistant() {
       if (!response.ok) {
         throw new Error(`Reponse generation failed: ${response.statusText}`);
       }
-      const { crossExaminationText } = await response.json();
-      console.log("Received response text", crossExaminationText);
-      setGeneratedCX(crossExaminationText);
-      await openTTS(crossExaminationText, 1.0);
+      const { jsonText } = await response.json();
+      console.log("Received response text", jsonText);
+      const listQuestionObjs = JSON.parse(jsonText);
+      const questions = listQuestionObjs
+        .map((obj, index) => `${index + 1}: ${obj.questionName}`)
+        .join("\n\n");
+      console.log("Parsed questions", questions);
+
+      setGeneratedCX(questions);
+
+      await openTTS(questions, 1.0);
     } catch (err) {
       console.log(err);
     } finally {
@@ -228,6 +236,7 @@ export default function DebateAssistant() {
       }
       const { constructiveText } = await response.json();
       setGeneratedConstructive(constructiveText);
+
       await openTTS(constructiveText, 1.1);
     } catch (err) {
       console.log(err);
