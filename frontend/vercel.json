@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/openTTS.js": {
+      "maxDuration": 30
+    }
+  }
+}
