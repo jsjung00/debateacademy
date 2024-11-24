@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
 
+export const maxDuration = 20;
+
 async function getCEXQuestions(userSpeech, fileDatas) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   console.log("speech", userSpeech);
