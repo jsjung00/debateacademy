@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/openTTS.js": {
+    "pages/api/openTTS.js": {
       "maxDuration": 40
     }
   }
